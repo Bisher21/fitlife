@@ -1,6 +1,6 @@
 class ApiConstants {
 
-  static const String baseUrl = 'https://fitlife-app-theta.vercel.app/v1';
+  static const String baseUrl = 'https://fitlife-app-theta.vercel.app';
 
   // Auth Endpoints
   static const String register = '/register';
