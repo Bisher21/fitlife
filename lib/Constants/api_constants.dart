@@ -1,18 +1,24 @@
 class ApiConstants {
+  // Added /v1 to match the Laravel programmer's Postman collection
+  static const String baseUrl = 'https://fitlife-app-theta.vercel.app/v1';
 
-  static const String baseUrl = 'https://fitlife-app-theta.vercel.app';
+  static const String register = '$baseUrl/register';
+  static const String login = '$baseUrl/login';
+  static const String logout = '$baseUrl/logout';
+  static const String getUser = '$baseUrl/user';
+  static const String resendVerification = '$baseUrl/email/verification-notification';
+  static const String socialLogin = '$baseUrl/social-login';
 
-  // Auth Endpoints
-  static const String register = '/register';
-  static const String login = '/login';
-  static const String socialLogin = '/social-login';
-  static const String logout = '/logout';
-  static const String user = '/user';
-  static const String resendVerification = '/email/verification-notification';
-
-  // Headers
-  static const Map<String, String> headers = {
-    'Accept': 'application/json',
+  static Map<String, String> headers = {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   };
+
+  static Map<String, String> headersWithToken(String token) {
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+  }
 }

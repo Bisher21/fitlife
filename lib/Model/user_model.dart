@@ -1,41 +1,48 @@
-class UserModel {
+import 'package:flutter/foundation.dart';
+
+// 1. UserResponseModel (What you RECEIVE from the API on login/register)
+class UserResponseModel {
   final int id;
   final String name;
   final String email;
-  final String? emailVerifiedAt;
-  final String? provider;
-  final String? providerId;
 
-  UserModel({
+  final String createdAt;
+  final String updatedAt;
+
+  UserResponseModel({
     required this.id,
     required this.name,
     required this.email,
-    this.emailVerifiedAt,
-    this.provider,
-    this.providerId,
+
+    required this.createdAt,
+    required this.updatedAt,
   });
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
-    return UserModel(
-      id: json['id'],
-      name: json['name'],
-      email: json['email'],
-      emailVerifiedAt: json['email_verified_at'],
-      provider: json['provider'],
-      providerId: json['provider_id'],
+
+  factory UserResponseModel.fromJson(Map<String, dynamic> json) {
+    return UserResponseModel(
+      id: json['id'] as int? ?? 0,
+      name: json['name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      // Note: The backend response does not include the password, so we don't map it.
+      createdAt: json['created_at'] as String? ?? '',
+      updatedAt: json['updated_at'] as String? ?? '',
     );
   }
 
+  // Method to convert the model back to a map (for saving to SharedPreferences)
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'name': name,
       'email': email,
-      'email_verified_at': emailVerifiedAt,
-      'provider': provider,
-      'provider_id': providerId,
+
+      'created_at': createdAt,
+      'updated_at': updatedAt,
     };
   }
-
-  bool get isEmailVerified => emailVerifiedAt != null;
 }
+
+
+
+

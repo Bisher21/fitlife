@@ -1,46 +1,48 @@
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+class SharedPreferencesHelper {
+  static const String _tokenKey = 'auth_token';
+  static const String _userKey = 'user_data';
 
-import '../Model/user_model.dart';
-
-class StorageService {
-  static const _storage = FlutterSecureStorage();
-  static const _tokenKey = 'auth_token';
-  static const _userKey = 'user_data';
-
-  // حفظ التوكن
-  static Future<void> saveToken(String token) async {
-    await _storage.write(key: _tokenKey, value: token);
+  // حفظ Token
+  static Future<bool> saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    return await prefs.setString(_tokenKey, token);
   }
 
-  // جلب التوكن
+  // استرجاع Token
   static Future<String?> getToken() async {
-    return await _storage.read(key: _tokenKey);
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey);
   }
 
   // حفظ بيانات المستخدم
-  static Future<void> saveUser(UserModel user) async {
-    final userJson = jsonEncode(user.toJson());
-    await _storage.write(key: _userKey, value: userJson);
+  static Future<bool> saveUser(Map<String, dynamic> userData) async {
+    final prefs = await SharedPreferences.getInstance();
+    String userJson = json.encode(userData);
+    return await prefs.setString(_userKey, userJson);
   }
 
-  // جلب بيانات المستخدم
-  static Future<UserModel?> getUser() async {
-    final userJson = await _storage.read(key: _userKey);
-    if (userJson == null) return null;
-    return UserModel.fromJson(jsonDecode(userJson));
+  // استرجاع بيانات المستخدم
+  static Future<Map<String, dynamic>?> getUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? userJson = prefs.getString(_userKey);
+    if (userJson != null) {
+      return json.decode(userJson);
+    }
+    return null;
   }
 
-  // حذف كل البيانات (عند Logout)
-  static Future<void> clearAll() async {
-    await _storage.deleteAll();
+  // حذف كل البيانات (عند تسجيل الخروج)
+  static Future<bool> clearAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    return await prefs.clear();
   }
 
-  // التحقق من وجود توكن
-  static Future<bool> hasToken() async {
-    final token = await getToken();
+  // التحقق من وجود Token
+  static Future<bool> isLoggedIn() async {
+    String? token = await getToken();
     return token != null && token.isNotEmpty;
   }
 }
