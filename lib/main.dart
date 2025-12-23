@@ -1,12 +1,13 @@
 import 'package:bproject/services/storage-service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
-
+import 'providers/auth_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -26,43 +27,34 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
-class AuthGate extends StatefulWidget {
+class AuthGate extends ConsumerStatefulWidget {
   const AuthGate({super.key});
 
   @override
-  State<AuthGate> createState() => _AuthGateState();
+  ConsumerState<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<AuthGate> {
-  late Future<String?> _tokenFuture;
-
+class _AuthGateState extends ConsumerState<AuthGate> {
   @override
   void initState() {
     super.initState();
-
-    _tokenFuture = SharedPreferencesHelper.getToken();
-
+    // Check auth status on app start
+    Future.microtask(() => ref.read(authProvider.notifier).checkAuthStatus());
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String?>(
-      future: _tokenFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen();
-        }
+    final authState = ref.watch(authProvider);
 
-        final token = snapshot.data ?? "";
+    if (authState.isLoading) {
+      return const SplashScreen();
+    }
 
-        if (token.isNotEmpty) {
-          return const HomeScreen();
-        } else {
-          return const LoginScreen();
-        }
-      },
-    );
+    if (authState.isAuthenticated) {
+      return const HomeScreen();
+    } else {
+      return const LoginScreen();
+    }
   }
 }
 

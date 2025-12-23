@@ -1,16 +1,17 @@
 import 'package:bproject/Screens/verify_screen.dart';
 import 'package:bproject/screens/login_screen.dart';
 import 'package:flutter/material.dart';
-import '../services/api-service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen>
+class _RegisterScreenState extends ConsumerState<RegisterScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
@@ -19,10 +20,8 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _passwordController = TextEditingController();
   final _passwordConfirmationController = TextEditingController();
 
-  bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscurePasswordConfirmation = true;
-
 
   String? _nameError;
   String? _emailError;
@@ -58,7 +57,6 @@ class _RegisterScreenState extends State<RegisterScreen>
     _controller.dispose();
     super.dispose();
   }
-
 
   void _validateName(String value) {
     setState(() {
@@ -130,7 +128,6 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   Future<void> _register() async {
-
     _validateName(_nameController.text.trim());
     _validateEmail(_emailController.text.trim());
     _validatePassword(_passwordController.text);
@@ -138,9 +135,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
     if (!_isFormValid()) return;
 
-    setState(() => _isLoading = true);
-
-    final result = await ApiService.register(
+    final result = await ref.read(authProvider.notifier).register(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
@@ -148,7 +143,6 @@ class _RegisterScreenState extends State<RegisterScreen>
       deviceName: 'flutter_app',
     );
 
-    setState(() => _isLoading = false);
     if (!mounted) return;
 
     if (result['success']) {
@@ -160,7 +154,6 @@ class _RegisterScreenState extends State<RegisterScreen>
         MaterialPageRoute(builder: (_) => const VerificationScreen()),
       );
     } else {
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
       );
@@ -169,6 +162,9 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final isLoading = authState.isLoading;
+
     return Scaffold(
       backgroundColor: const Color(0xFF1F2933),
       body: Container(
@@ -197,7 +193,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 40),
-
 
                       IconButton(
                         icon: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -268,14 +263,14 @@ class _RegisterScreenState extends State<RegisterScreen>
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _register,
+                          onPressed: isLoading ? null : _register,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          child: _isLoading
+                          child: isLoading
                               ? const CircularProgressIndicator()
                               : const Text(
                             'Register',
@@ -325,8 +320,6 @@ class _RegisterScreenState extends State<RegisterScreen>
       ),
     );
   }
-
-
 
   Widget _inputField({
     required TextEditingController controller,

@@ -1,56 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/api-service.dart';
-import '../services/storage-service.dart';
+import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
-import '../Model/user_model.dart';
 
-class VerificationScreen extends StatefulWidget {
+class VerificationScreen extends ConsumerStatefulWidget {
   const VerificationScreen({super.key});
 
   @override
-  State<VerificationScreen> createState() => _VerificationScreenState();
+  ConsumerState<VerificationScreen> createState() => _VerificationScreenState();
 }
 
-class _VerificationScreenState extends State<VerificationScreen> {
-  String? userEmail;
-
-
-  bool _isInitialLoading = true;
+class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   bool _isCheckingVerification = false;
   bool _isResending = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUserAndCheckVerification();
+    _checkInitialVerification();
   }
 
-  Future<void> _loadUserAndCheckVerification() async {
-    setState(() => _isInitialLoading = true);
+  Future<void> _checkInitialVerification() async {
+    final authState = ref.read(authProvider);
 
-    try {
-      final localUserMap = await SharedPreferencesHelper.getUser();
-
-      if (localUserMap != null) {
-        final localUser = UserResponseModel.fromJson(localUserMap);
-
-        if (localUser.isVerified) {
-          if (!mounted) return;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-          return;
-        }
-        setState(() => userEmail = localUser.email);
-      }
-    } catch (e) {
-      debugPrint("Error loading user: $e");
-    } finally {
-      if (mounted) {
-        setState(() => _isInitialLoading = false);
-      }
+    if (authState.user?.isVerified ?? false) {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
     }
   }
 
@@ -60,25 +40,23 @@ class _VerificationScreenState extends State<VerificationScreen> {
     setState(() => _isCheckingVerification = true);
 
     try {
-      final result = await ApiService.getAuthenticatedUser();
+      final result = await ref.read(authProvider.notifier).refreshUser();
 
       if (!mounted) return;
       setState(() => _isCheckingVerification = false);
 
       if (result['success']) {
-        final user = UserResponseModel.fromJson(result['user']);
+        final authState = ref.read(authProvider);
 
-        if (user.isVerified) {
+        if (authState.isVerified) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const HomeScreen()),
           );
         } else {
-
           _showSnackBar('Not verified yet, please check your email', Colors.orange);
         }
       } else {
-
         if (result['isNotVerified'] == true) {
           _showSnackBar('Not verified yet, please check your email', Colors.orange);
         } else {
@@ -111,14 +89,8 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isInitialLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF1F2933),
-        body: Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
-      );
-    }
+    final authState = ref.watch(authProvider);
+    final userEmail = authState.user?.email ?? 'Unknown email';
 
     return Scaffold(
       backgroundColor: const Color(0xFF1F2933),
@@ -141,7 +113,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 60),
-                _buildHeader(),
+                _buildHeader(userEmail),
                 const SizedBox(height: 50),
                 _buildActions(),
               ],
@@ -152,7 +124,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String userEmail) {
     return Column(
       children: [
         // Email Icon
@@ -175,7 +147,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
         ),
         const SizedBox(height: 30),
 
-
         const Text(
           'Verify Your Email',
           style: TextStyle(
@@ -186,7 +157,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 12),
-
 
         const Text(
           'We sent a verification link to:',
@@ -209,7 +179,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
             ),
           ),
           child: Text(
-            userEmail ?? 'Unknown email',
+            userEmail,
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
@@ -219,7 +189,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
           ),
         ),
         const SizedBox(height: 16),
-
 
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
@@ -239,112 +208,110 @@ class _VerificationScreenState extends State<VerificationScreen> {
   Widget _buildActions() {
     return Column(
       children: [
-
-        SizedBox(
-          width: double.infinity,
-          height: 55,
-          child: ElevatedButton(
-            onPressed: _isCheckingVerification ? null : _refreshStatus,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              elevation: 0,
-            ),
-            child: _isCheckingVerification
-                ? const SizedBox(
-              height: 24,
-              width: 24,
-              child: CircularProgressIndicator(
-                color: Color(0xFFF48C64),
-                strokeWidth: 2.5,
-              ),
-            )
-                : const Text(
-              'I\'ve Verified - Continue',
-              style: TextStyle(
-                color: Color(0xFFF48C64),
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+      SizedBox(
+      width: double.infinity,
+      height: 55,
+      child: ElevatedButton(
+        onPressed: _isCheckingVerification ? null : _refreshStatus,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          elevation: 0,
+        ),
+        child: _isCheckingVerification
+            ? const SizedBox(
+          height: 24,
+          width: 24,
+          child: CircularProgressIndicator(
+            color: Color(0xFFF48C64),
+            strokeWidth: 2.5,
+          ),
+        )
+            : const Text(
+          'I\'ve Verified - Continue',
+          style: TextStyle(
+            color: Color(0xFFF48C64),
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
         ),
+      ),
+    ),
 
-        const SizedBox(height: 16),
+    const SizedBox(height: 16),
 
-        // Resend Email Button
-        SizedBox(
-          width: double.infinity,
-          height: 55,
-          child: OutlinedButton(
-            onPressed: _isResending
-                ? null
-                : () async {
-              setState(() => _isResending = true);
-              try {
-                final res = await ApiService.resendVerification();
-                if (!mounted) return;
-                _showSnackBar(
-                  res['message'] ?? 'Email sent',
-                  res['success'] ? Colors.green : Colors.red,
-                );
-              } catch (e) {
-                _showSnackBar('An error occurred', Colors.red);
-              } finally {
-                if (mounted) setState(() => _isResending = false);
-              }
-            },
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.white, width: 2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-            ),
-            child: _isResending
-                ? const SizedBox(
-              height: 24,
-              width: 24,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2.5,
-              ),
-            )
-                : const Text(
-              'Resend Verification Email',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
+    // Resend Email Button
+    SizedBox(
+    width: double.infinity,
+    height: 55,
+    child: OutlinedButton(
+    onPressed: _isResending
+    ? null
+        : () async {
+    setState(() => _isResending = true);
+    try {
+    final res = await ApiService.resendVerification();
+    if (!mounted) return;
+    _showSnackBar(
+    res['message'] ?? 'Email sent',
+    res['success'] ? Colors.green : Colors.red,
+    );
+    } catch (e) {
+    _showSnackBar('An error occurred', Colors.red);
+    } finally {
+    if (mounted) setState(() => _isResending = false);
+    }
+    },
+    style: OutlinedButton.styleFrom(
+    side: const BorderSide(color: Colors.white, width: 2),
+    shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(30),
+    ),
+    ),
+    child: _isResending
+    ? const SizedBox(
+    height: 24,
+    width: 24,
+    child: CircularProgressIndicator(
+    color: Colors.white,
+    strokeWidth: 2.5,
+    ),
+    )
+        : const Text(
+    'Resend Verification Email',
+    style: TextStyle(
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+    ),
+    ),
+    ),
+    ),
 
-        const SizedBox(height: 30),
+    const SizedBox(height: 30),
 
-        // Logout Button
-        TextButton(
-          onPressed: () async {
-            await ApiService.logout();
-            if (!mounted) return;
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-            );
-          },
-          child: const Text(
-            'Logout',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              decoration: TextDecoration.underline,
-              decorationColor: Colors.white,
-            ),
-          ),
-        ),
+    // Logout Button
+    TextButton(
+    onPressed: () async {
+    await ref.read(authProvider.notifier).logout();
+    if (!mounted) return;
+    Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+    },
+    child: const Text(
+    'Logout',
+    style: TextStyle(
+    color: Colors.white,
+    fontWeight: FontWeight.bold,
+    fontSize: 16,
+    decoration: TextDecoration.underline,
+    decorationColor: Colors.white,
+    ),),
+    ),
       ],
     );
   }

@@ -1,20 +1,17 @@
 import 'package:bproject/Screens/verify_screen.dart';
 import 'package:flutter/material.dart';
-import '../services/api-service.dart';
-import '../services/storage-service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  Map<String, dynamic>? userData;
-  bool _isLoading = true;
-
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
@@ -22,41 +19,37 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadUserData() async {
-    await ApiService.getAuthenticatedUser();
-    final user = await SharedPreferencesHelper.getUser();
+    final result = await ref.read(authProvider.notifier).refreshUser();
 
     if (!mounted) return;
 
-    if (user != null && user['email_verified_at'] == null) {
+    final authState = ref.read(authProvider);
+    if (authState.user != null && !authState.isVerified) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const VerificationScreen()),
       );
-    } else {
-      setState(() {
-        userData = user;
-        _isLoading = false;
-      });
     }
   }
 
   Future<void> _logout() async {
-    final result = await ApiService.logout();
+    await ref.read(authProvider.notifier).logout();
+
     if (!mounted) return;
 
-    if (result['success']) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
+    final authState = ref.watch(authProvider);
+    final userData = authState.user?.toJson();
 
-    if (_isLoading) {
+    if (authState.isLoading || userData == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
@@ -81,9 +74,9 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildAppBar(primaryColor),
                 const SizedBox(height: 20),
-                _buildWelcomeCard(primaryColor),
+                _buildWelcomeCard(primaryColor, userData),
                 const SizedBox(height: 20),
-                _buildInfoCard(primaryColor),
+                _buildInfoCard(primaryColor, userData),
               ],
             ),
           ),
@@ -112,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildWelcomeCard(Color primaryColor) {
+  Widget _buildWelcomeCard(Color primaryColor, Map<String, dynamic> userData) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -152,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                userData?['name'] ?? 'مستخدم',
+                userData['name'] ?? 'مستخدم',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
@@ -174,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildInfoCard(Color primaryColor) {
+  Widget _buildInfoCard(Color primaryColor, Map<String, dynamic> userData) {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -193,14 +186,14 @@ class _HomeScreenState extends State<HomeScreen> {
           _infoRow(
             icon: Icons.email_outlined,
             title: 'Email',
-            value: userData?['email'] ?? '-',
+            value: userData['email'] ?? '-',
             primaryColor: primaryColor,
           ),
           const Divider(height: 30),
           _infoRow(
             icon: Icons.verified_user_outlined,
             title: 'Account State',
-            value: userData?['email_verified_at'] != null
+            value: userData['email_verified_at'] != null
                 ? 'Vrified'
                 : 'Not verified',
             primaryColor: primaryColor,

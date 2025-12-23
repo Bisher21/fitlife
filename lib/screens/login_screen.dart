@@ -1,23 +1,23 @@
 import 'package:bproject/Screens/register_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../google_sign_in/google_sign_in.dart';
-import '../services/api-service.dart';
+import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
+class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  bool _isLoading = false;
   bool _obscurePassword = true;
 
   // Error messages for real-time validation
@@ -78,7 +78,6 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   bool _isFormValid() {
-
     return _emailError == null &&
         _passwordError == null &&
         _emailController.text.isNotEmpty &&
@@ -86,21 +85,17 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _login() async {
-
     _validateEmail(_emailController.text.trim());
     _validatePassword(_passwordController.text);
 
     if (!_isFormValid()) return;
 
-    setState(() => _isLoading = true);
-
-    final result = await ApiService.login(
+    final result = await ref.read(authProvider.notifier).login(
       email: _emailController.text.trim(),
       password: _passwordController.text,
       deviceName: 'flutter_app',
     );
 
-    setState(() => _isLoading = false);
     if (!mounted) return;
 
     if (result['success']) {
@@ -119,11 +114,11 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-
-
-
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final isLoading = authState.isLoading;
+
     return Scaffold(
       backgroundColor: const Color(0xFF1F2933),
       body: Container(
@@ -191,19 +186,18 @@ class _LoginScreenState extends State<LoginScreen>
 
                       const SizedBox(height: 35),
 
-
                       SizedBox(
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
+                          onPressed: isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          child: _isLoading
+                          child: isLoading
                               ? const CircularProgressIndicator(color: Color(0xFFF48C64))
                               : const Text(
                             'Login',
@@ -232,21 +226,19 @@ class _LoginScreenState extends State<LoginScreen>
 
                       const SizedBox(height: 20),
 
-
                       SizedBox(
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton.icon(
                           icon: Image.asset('assets/google.png', height: 22),
                           label: const Text('Continue with Google'),
-                          onPressed: () => signInWithGoogle(context),
+                          onPressed: () => signInWithGoogle(context,ref),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
-
                             elevation: 2,
                           ),
                         ),
@@ -290,8 +282,6 @@ class _LoginScreenState extends State<LoginScreen>
       ),
     );
   }
-
-
 
   Widget _inputField({
     required TextEditingController controller,
